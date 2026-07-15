@@ -109,6 +109,11 @@ import pytest
             "GPL-3.0-or-later AND GPL-3.0-or-later WITH GCC-exception-3.1",
             id="Do not reduce WITH and non-WITH",
         ),
+        pytest.param(
+            "LicenseRef-FOO AND 0BSD AND Zlib",
+            "0BSD AND Zlib AND LicenseRef-FOO",
+            id="LicenseRef ordering",
+        ),
     ],
 )
 def test_sort(expression, expected):
