@@ -1,0 +1,52 @@
+[project]
+name = "py-spdx-license"
+description = "Zero dependency SPDX License Expression library"
+dynamic = ["version"]
+requires-python = ">= 3.9"
+authors = [
+    {name = "Joshua Watt", email = "JPEWhacker@gmail.com"},
+]
+readme = "README.md"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Build Tools",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+license = "MIT"
+
+[project.optional-dependencies]
+dev = [
+    "black >= 25.11.0",
+    "flake8 >= 7.0.0",
+    "flake8-import-order >= 0.19.2",
+    "pytest >= 7.4",
+    "pytest-cov >= 4.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/JPEWdev/py-spdx-license"
+Repository = "https://github.com/JPEWdev/py-spdx-license.git"
+Issues = "https://github.com/JPEWdev/py-spdx-license/issues"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/py_spdx_license/version.py"
+
+[tool.pytest.ini_options]
+addopts = [
+    "--import-mode=importlib",
+    "--cov=py_spdx_license",
+]
+
+[tool.coverage.run]
+relative_files = true
+patch = ["subprocess"]

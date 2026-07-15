@@ -1,0 +1,37 @@
+---
+name: Upload Python Package
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yaml
+
+  deploy:
+    needs:
+      - test
+
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python
+        uses: actions/setup-python@65d7f2d534ac1bc67fcd62888c5f4f3d2cb2b236 # v4.7.1
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: Build package
+        run: python -m build
+
+      - name: Publish distribution to PyPI
+        uses: pypa/gh-action-pypi-publish@76f52bc884231f62b9a034ebfe128415bbaabdfc # release/v1
