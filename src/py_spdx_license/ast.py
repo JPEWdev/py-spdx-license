@@ -4,12 +4,11 @@
 # SPDX-License-Identifier: MIT
 #
 
-import re
 import json
-from abc import abstractmethod, ABC
-from enum import Enum
-from pathlib import Path
+import re
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from pathlib import Path
 
 THIS_DIR = Path(__file__).parent
 
@@ -214,7 +213,7 @@ class ReservedToken(Node):
             return False
 
         token = stack[-1]
-        if not token.value in RESERVED:
+        if token.value not in RESERVED:
             return False
 
         stack.pop()
@@ -359,7 +358,6 @@ class CompoundExpression(Node):
             ):
                 raise ParseError(stack[-1], "Missing matching '('")
 
-            rparen = stack[-1]
             n = stack[-2]
             lparen = stack[-3]
 
@@ -683,7 +681,6 @@ def tokenize(s):
 
     def end_token(end):
         nonlocal t
-        nonlocal tokens
         if t.value:
             t.end = end + 1
             tokens.append(t)
@@ -761,7 +758,7 @@ def parse(s, *, allow_unknown=False):
 
 def parse_match(s):
     try:
-        tokens = tokenizer(s)
+        tokens = tokenize(s)
         return create_ast(tokens)
     except ParseError as e:
         e.expression = s

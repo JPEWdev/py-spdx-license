@@ -7,7 +7,7 @@
 import subprocess
 from pathlib import Path
 
-TOP_DIR = Path(__file__).parent
+TOP_DIR = Path(__file__).parent.parent
 
 
 def test_black():
