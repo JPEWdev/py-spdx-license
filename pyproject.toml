@@ -34,6 +34,9 @@ Homepage = "https://github.com/JPEWdev/py-spdx-license"
 Repository = "https://github.com/JPEWdev/py-spdx-license.git"
 Issues = "https://github.com/JPEWdev/py-spdx-license/issues"
 
+[project.scripts]
+py-spdx-license = "py_spdx_license:main"
+
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
