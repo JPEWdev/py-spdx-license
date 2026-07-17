@@ -87,6 +87,11 @@ import pytest
             r"'[(]' expected, but not found",
             id="Wrong token for left parenthesis",
         ),
+        pytest.param(
+            "NOT MIT",
+            r"'NOT' expression not allowed in this context",
+            id="NOT disallowed in a non-match expression",
+        ),
     ],
 )
 def test_parse_error(expression, error):

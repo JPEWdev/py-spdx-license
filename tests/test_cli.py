@@ -54,6 +54,10 @@ GOOD_SORT_CASES = [
     ),
 ]
 
+GOOD_MATCH_SORT_CASES = [
+    ("NOT MIT AND 0BSD", "0BSD AND NOT MIT"),
+]
+
 BAD_SORT_CASES = [
     "UNKNOWN-LICENSE",
 ]
@@ -68,16 +72,26 @@ def test_sort_expressions():
     p = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, encoding="utf-8")
     assert p.stdout.splitlines() == [expected for _, expected in GOOD_SORT_CASES]
 
+
+def test_sort_match_expressions():
+    cmd = ["py-spdx-license", "sort", "-m"]
+    for expression, _ in GOOD_MATCH_SORT_CASES:
+        cmd.append("-e")
+        cmd.append(expression)
+
+    p = subprocess.run(cmd, check=True, stdout=subprocess.PIPE, encoding="utf-8")
+    assert p.stdout.splitlines() == [expected for _, expected in GOOD_MATCH_SORT_CASES]
+
+
+def test_sort_bad_expressions():
     for c in BAD_SORT_CASES:
         p = subprocess.run(["py-spdx-license", "sort", "-e", c], encoding="utf-8")
         assert p.returncode != 0
 
 
 def test_sort_stdin():
-    cmd = ["py-spdx-license", "sort"]
-
     p = subprocess.run(
-        cmd,
+        ["py-spdx-license", "sort"],
         check=True,
         stdout=subprocess.PIPE,
         encoding="utf-8",
@@ -85,6 +99,19 @@ def test_sort_stdin():
     )
     assert p.stdout.splitlines() == [expected for _, expected in GOOD_SORT_CASES]
 
+
+def test_sort_match_stdin():
+    p = subprocess.run(
+        ["py-spdx-license", "sort", "-m"],
+        check=True,
+        stdout=subprocess.PIPE,
+        encoding="utf-8",
+        input="\n".join(expression for expression, _ in GOOD_MATCH_SORT_CASES),
+    )
+    assert p.stdout.splitlines() == [expected for _, expected in GOOD_MATCH_SORT_CASES]
+
+
+def test_sort_bad_stdin():
     for c in BAD_SORT_CASES:
         p = subprocess.run(["py-spdx-license", "sort"], encoding="utf-8", input=c)
         assert p.returncode != 0
@@ -92,8 +119,7 @@ def test_sort_stdin():
 
 def test_sort_file(tmp_path):
     fn = tmp_path / "good.txt"
-    with fn.open("w") as f:
-        f.write("\n".join(expression for expression, _ in GOOD_SORT_CASES))
+    fn.write_text("\n".join(expression for expression, _ in GOOD_SORT_CASES))
 
     p = subprocess.run(
         ["py-spdx-license", "sort", "-F", fn],
@@ -103,9 +129,23 @@ def test_sort_file(tmp_path):
     )
     assert p.stdout.splitlines() == [expected for _, expected in GOOD_SORT_CASES]
 
+
+def test_sort_match_file(tmp_path):
+    fn = tmp_path / "good.txt"
+    fn.write_text("\n".join(expression for expression, _ in GOOD_MATCH_SORT_CASES))
+
+    p = subprocess.run(
+        ["py-spdx-license", "sort", "-F", fn, "-m"],
+        check=True,
+        stdout=subprocess.PIPE,
+        encoding="utf-8",
+    )
+    assert p.stdout.splitlines() == [expected for _, expected in GOOD_MATCH_SORT_CASES]
+
+
+def test_sort_bad_file(tmp_path):
     fn = tmp_path / "bad.txt"
     for c in BAD_SORT_CASES:
-        with fn.open("w") as f:
-            f.write(c)
+        fn.write_text(c)
         p = subprocess.run(["py-spdx-license", "sort", "-F", fn], encoding="utf-8")
         assert p.returncode != 0

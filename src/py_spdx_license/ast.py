@@ -371,10 +371,7 @@ class CompoundExpression(Node):
             stack.append(cls(n))
             return True
 
-        if not check_stack_types(
-            stack,
-            [(AndOp, OrOp, WithOp)],
-        ):
+        if not check_stack_types(stack, [Operator]):
             return False
 
         stack.append(cls(stack.pop()))
@@ -437,6 +434,11 @@ class UnaryOp(Operator):
 
         stack.append(cls(child, token=token))
         return True
+
+    def _sort(self):
+        s = self.child._sort()
+        self.children = [s.node]
+        return Node.Sort(self, [self.__class__.__name__, s.key])
 
 
 class BinOp(Operator):
@@ -741,7 +743,9 @@ def create_ast(tokens, *, allow_unknown=False):
 def parse(s, *, allow_unknown=False):
     def check_node(n):
         if isinstance(n, NotOp):
-            raise ParseError(n, "Expression not allowed in this context")
+            raise ParseError(
+                n, f"'{n.token.value}' expression not allowed in this context"
+            )
 
         for child in n.children:
             check_node(child)

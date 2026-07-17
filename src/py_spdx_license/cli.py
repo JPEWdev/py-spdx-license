@@ -24,7 +24,10 @@ def handle_sort(args):
 
     for e in read_expressions():
         try:
-            n = py_spdx_license.parse(e)
+            if args.match:
+                n = py_spdx_license.parse_match(e)
+            else:
+                n = py_spdx_license.parse(e)
         except py_spdx_license.ParseError as e:
             print(e.format())
             return 1
@@ -47,6 +50,12 @@ def main():
 
     sort_parser = subparsers.add_parser(
         "sort", help="Sort and simplify license expression"
+    )
+    sort_parser.add_argument(
+        "--match",
+        "-m",
+        help="Parse as a match expression",
+        action="store_true",
     )
     sort_input_group = sort_parser.add_mutually_exclusive_group()
     sort_input_group.add_argument(
