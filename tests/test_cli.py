@@ -149,3 +149,36 @@ def test_sort_bad_file(tmp_path):
         fn.write_text(c)
         p = subprocess.run(["py-spdx-license", "sort", "-F", fn], encoding="utf-8")
         assert p.returncode != 0
+
+
+def test_ast_expressions():
+    cmd = ["py-spdx-license", "ast"]
+    for expression, _ in GOOD_SORT_CASES:
+        cmd.append("-e")
+        cmd.append(expression)
+
+    subprocess.run(cmd, check=True, encoding="utf-8")
+
+
+def test_ast_sort_expressions():
+    cmd = ["py-spdx-license", "ast", "-s"]
+    for expression, _ in GOOD_SORT_CASES:
+        cmd.append("-e")
+        cmd.append(expression)
+
+    subprocess.run(cmd, check=True, encoding="utf-8")
+
+
+def test_ast_match_expressions():
+    cmd = ["py-spdx-license", "ast", "-m"]
+    for expression, _ in GOOD_MATCH_SORT_CASES:
+        cmd.append("-e")
+        cmd.append(expression)
+
+    subprocess.run(cmd, check=True, encoding="utf-8")
+
+
+def test_ast_bad_expressions():
+    for c in BAD_SORT_CASES:
+        p = subprocess.run(["py-spdx-license", "ast", "-e", c], encoding="utf-8")
+        assert p.returncode != 0
