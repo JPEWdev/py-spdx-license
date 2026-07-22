@@ -114,6 +114,11 @@ import pytest
             "0BSD AND Zlib AND LicenseRef-FOO",
             id="LicenseRef ordering",
         ),
+        pytest.param(
+            "GPL-3.0-or-later AND MIT AND GPL-3.0-only AND 0BSD AND GPL-3.0-or-later WITH GCC-exception-3.1",
+            "0BSD AND GPL-3.0-only AND GPL-3.0-or-later AND GPL-3.0-or-later WITH GCC-exception-3.1 AND MIT",
+            id="WITH group by License ID",
+        ),
     ],
 )
 def test_sort(expression, expected):

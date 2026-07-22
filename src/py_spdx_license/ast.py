@@ -646,11 +646,13 @@ class WithOp(BinOp):
     def _sort(self):
         return Node.Sort(
             self,
-            [
-                self.__class__.__name__,
-                self.license._sort().key,
-                self.exception._sort().key,
-            ],
+            # Instead of doing the normal nested keys, concatenate the License
+            # ID with the Exception ID. This allows the Exceptions to be
+            # grouped with other License IDs instead of being grouped at the
+            # end
+            self.license._sort().key
+            + self.exception._sort().key
+            + [self.__class__.__name__],
         )
 
 
