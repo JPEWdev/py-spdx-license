@@ -93,8 +93,8 @@ def check_stack_types(stack, types):
 
 
 class Token(object):
-    def __init__(self):
-        self.value = ""
+    def __init__(self, value=""):
+        self.value = value
         self.start = 0
         self.end = 0
 
@@ -107,6 +107,26 @@ class Token(object):
 
     def get_range(self):
         return self.start, self.end
+
+    def split(self, idx):
+        a = self.__class__(self.value[idx:])
+        b = self.__class__(self.value[:idx])
+
+        if idx >= 0:
+            a.start = self.start
+            a.end = self.start + idx
+
+            b.start = self.start + idx
+            b.end = self.end
+            return a, b
+
+        a.end = self.end
+        a.start = self.end + idx
+
+        b.start = self.start
+        b.end = self.end + idx
+
+        return b, a
 
 
 class Node(ABC):
@@ -263,11 +283,23 @@ class LicenseId(Identifier):
         if not check_stack_types(stack, [Token]):
             return False
 
-        lic = get_license(stack[-1].value)
+        lic_token = stack[-1]
+        with_token = None
+        lic = get_license(lic_token.value)
+        if lic is None and lic_token.value.endswith("+"):
+            lic_token, with_token = stack[-1].split(-1)
+            lic = get_license(lic_token.value)
+
         if lic is None:
             return False
 
-        stack.append(cls(lic["licenseId"], token=stack.pop()))
+        stack.pop()
+
+        c = cls(lic["licenseId"], token=lic_token)
+        if with_token:
+            c = OrLaterOp(c, token=with_token)
+
+        stack.append(c)
         return True
 
 
@@ -317,6 +349,32 @@ class LicenseRef(Identifier):
         t = stack.pop()
         stack.append(cls(t.value, m.group("name"), token=t))
         return True
+
+
+class OrLaterOp(Node):
+    def __init__(self, child, **kwargs):
+        super().__init__([child], **kwargs)
+
+    def copy(self):
+        return self.__class__(self.child.copy(), token=self._copy_token())
+
+    @property
+    def child(self):
+        return self.children[0]
+
+    def to_string(self):
+        return self.child.to_string() + "+"
+
+    def reduce(cls, stack, lookahead):
+        return False
+
+    def _sort(self):
+        s = self.child._sort()
+        self.children = [s.node]
+        return Node.Sort(
+            self,
+            s.key + [self.__class__.__name__],
+        )
 
 
 class CompoundExpression(Node):
@@ -381,7 +439,7 @@ class CompoundExpression(Node):
         return self.child._sort()
 
 
-SIMPLE_EXPRESSION = [LicenseId, LicenseRef, UnknownId]
+SIMPLE_EXPRESSION = [LicenseId, LicenseRef, UnknownId, OrLaterOp]
 COMPOUND_EXPRESSION = SIMPLE_EXPRESSION + [CompoundExpression]
 
 
@@ -438,7 +496,7 @@ class UnaryOp(Operator):
     def _sort(self):
         s = self.child._sort()
         self.children = [s.node]
-        return Node.Sort(self, [self.__class__.__name__, s.key])
+        return Node.Sort(self, s.key + [self.__class__.__name__])
 
 
 class BinOp(Operator):
@@ -656,7 +714,7 @@ class WithOp(BinOp):
         )
 
 
-RESERVED = set(Operator.OPERATORS.keys()) | {"(", ")", "+"}
+RESERVED = set(Operator.OPERATORS.keys()) | {"(", ")"}
 
 REDUCTIONS = (
     ReservedToken.reduce,

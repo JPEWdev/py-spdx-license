@@ -119,6 +119,16 @@ import pytest
             "0BSD AND GPL-3.0-only AND GPL-3.0-or-later AND GPL-3.0-or-later WITH GCC-exception-3.1 AND MIT",
             id="WITH group by License ID",
         ),
+        pytest.param(
+            "MIT+ AND MIT AND Zlib",
+            "MIT AND MIT+ AND Zlib",
+            id="+ ordering",
+        ),
+        pytest.param(
+            "(MIT AND MIT+) OR (MIT+ AND MIT)",
+            "MIT AND MIT+",
+            id="+ Reduction",
+        ),
     ],
 )
 def test_sort(expression, expected):
