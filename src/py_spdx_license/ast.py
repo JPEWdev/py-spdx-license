@@ -127,6 +127,9 @@ class Node(ABC):
     def to_string(self):
         raise NotImplementedError("Method not implemented")
 
+    def __str__(self):
+        return self.to_string()
+
     def _copy_token(self):
         if self.token:
             return self.token.copy()
