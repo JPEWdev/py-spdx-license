@@ -6,9 +6,9 @@
 import subprocess
 import sys
 
-import pytest
-
 import py_spdx_license
+
+import pytest
 
 
 @pytest.mark.skipif(
