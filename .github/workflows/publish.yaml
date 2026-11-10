@@ -41,7 +41,6 @@ jobs:
           embed-wheel: "dist/*.whl"
           extras: "content-type"
           content-type: "true"
-          artifact-name: "sbom"
 
       - name: Publish distribution to PyPI
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v.1.14.2
