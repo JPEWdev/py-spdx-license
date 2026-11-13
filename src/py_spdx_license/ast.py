@@ -602,7 +602,7 @@ class ConjunctionOp(BinOp):
             left_key = self.left._sort().key
             right_key = right_parent.left._sort().key
             if left_key == right_key:
-                return children[1][0], children[1][1]
+                return children[1]
 
             if left_key > right_key:
                 tmp = self.children[0]
