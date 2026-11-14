@@ -182,3 +182,37 @@ def test_ast_bad_expressions():
     for c in BAD_SORT_CASES:
         p = subprocess.run(["py-spdx-license", "ast", "-e", c], encoding="utf-8")
         assert p.returncode != 0
+
+
+def test_sort_upgrades():
+    p = subprocess.run(
+        ["py-spdx-license", "sort"],
+        check=True,
+        stdout=subprocess.PIPE,
+        encoding="utf-8",
+        input="MIT OR GPL-2.0+\nGPL-2.0+ AND GPL-2.0-or-later",
+    )
+    assert p.stdout.splitlines() == ["GPL-2.0-or-later OR MIT", "GPL-2.0-or-later"]
+
+
+def test_ast_sort_upgrades():
+    def tree(*args):
+        p = subprocess.run(
+            ["py-spdx-license", "ast", *args, "-e", "StandardML-NJ OR GPL-2.0+"],
+            check=True,
+            stdout=subprocess.PIPE,
+            encoding="utf-8",
+        )
+        return p.stdout.splitlines()
+
+    assert tree() == [
+        "OrOp - 'OR'",
+        "  LicenseId - 'StandardML-NJ'",
+        "  LicenseId - 'GPL-2.0+'",
+    ]
+    # An upgraded ID shows as what it is now
+    assert tree("--sort") == [
+        "OrOp - 'OR'",
+        "  LicenseId - 'GPL-2.0-or-later'",
+        "  LicenseId - 'SMLNJ'",
+    ]

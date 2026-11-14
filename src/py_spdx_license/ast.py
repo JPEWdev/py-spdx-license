@@ -48,6 +48,67 @@ def get_exception(ident):
     return _EXCEPTIONS.get(ident.lower())
 
 
+def _deprecated_replacements():
+    """
+    Find which deprecated license IDs have a certain replacement.
+
+    The License List does not say what replaces a deprecated ID, so it is
+    found by the name: "GPL-2.0+" and "GPL-2.0-or-later" are both named "GNU
+    General Public License v2.0 or later", and "StandardML-NJ" and "SMLNJ" are
+    both named "Standard ML of New Jersey License".
+
+    A deprecated ID is replaced when all of these are true:
+
+     1. Exactly one ID that is not deprecated has the same name
+     2. The two IDs share a reference page (seeAlso), as a second sign that
+        they are the same license. The current List never needs it to decide;
+        it is a guard against a future rename of another kind
+     3. The deprecated ID is not a bare ID. "GPL-2.0" has the name of
+        "GPL-2.0-only", but it was used for both "only" and "or later", so
+        which one a file meant depends on the file, and it is not replaced.
+
+    Other IDs, such as "AGPL-3.0" or "GPL-2.0-with-GCC-exception", have no
+    ID with their name, so they are not replaced either.
+
+    Returns a dict from each deprecated ID to its replacement.
+    """
+    # The IDs in use, by name
+    in_use = {}
+    for lic in _LICENSES.values():
+        if not lic["isDeprecatedLicenseId"]:
+            in_use.setdefault(lic["name"].casefold(), []).append(lic["licenseId"])
+
+    replacements = {}
+    for lic in _LICENSES.values():
+        if not lic["isDeprecatedLicenseId"]:
+            continue
+
+        old_id = lic["licenseId"]
+
+        # 1. One ID in use has the name
+        same_name = in_use.get(lic["name"].casefold(), [])
+        if len(same_name) != 1:
+            continue
+        new_id = same_name[0]
+
+        # 2. They share a reference page
+        new_pages = _LICENSES[new_id.lower()]["seeAlso"]
+        if not set(lic["seeAlso"]) & set(new_pages):
+            continue
+
+        # 3. The old ID is not a bare ID
+        if new_id in (old_id + "-only", old_id + "-or-later"):
+            continue
+
+        replacements[old_id] = new_id
+
+    return replacements
+
+
+# The deprecated IDs that Node.upgrade() replaces, with their replacements
+DEPRECATED_REPLACEMENTS = _deprecated_replacements()
+
+
 class ParseError(Exception):
     def __init__(self, n, s):
         super().__init__(s)
@@ -93,8 +154,8 @@ def check_stack_types(stack, types):
 
 
 class Token(object):
-    def __init__(self):
-        self.value = ""
+    def __init__(self, value=""):
+        self.value = value
         self.start = 0
         self.end = 0
 
@@ -107,6 +168,26 @@ class Token(object):
 
     def get_range(self):
         return self.start, self.end
+
+    def split(self, idx):
+        a = self.__class__(self.value[idx:])
+        b = self.__class__(self.value[:idx])
+
+        if idx >= 0:
+            a.start = self.start
+            a.end = self.start + idx
+
+            b.start = self.start + idx
+            b.end = self.end
+            return a, b
+
+        a.end = self.end
+        a.start = self.end + idx
+
+        b.start = self.start
+        b.end = self.end + idx
+
+        return b, a
 
 
 class Node(ABC):
@@ -178,14 +259,28 @@ class Node(ABC):
     def sort(self):
         """
         Sort the tree into a consistent ordering and removing duplicate
-        licenses (e.g. "FOO AND FOO" or "FOO OR FOO")
+        licenses (e.g. "FOO AND FOO", "FOO OR FOO" or
+        "GPL-2.0+ AND GPL-2.0-or-later").
 
         Returns the root of a new tree which is a sorted copy of the original
         """
-        return self.copy()._sort().node
+        return self.upgrade()._sort().node
 
     def _sort(self):
         raise NotImplementedError("Method not implemented")
+
+    def upgrade(self):
+        """
+        Replace the deprecated IDs that have a certain replacement (see
+        DEPRECATED_REPLACEMENTS): "GPL-2.0+" becomes "GPL-2.0-or-later".
+
+        Returns the root of a new tree; the original is not changed
+        """
+        return self.copy()._upgrade()
+
+    def _upgrade(self):
+        self.children = [c._upgrade() for c in self.children]
+        return self
 
 
 class ReservedToken(Node):
@@ -266,12 +361,39 @@ class LicenseId(Identifier):
         if not check_stack_types(stack, [Token]):
             return False
 
-        lic = get_license(stack[-1].value)
+        lic_token = stack[-1]
+        with_token = None
+        lic = get_license(lic_token.value)
+        if lic is None and lic_token.value.endswith("+"):
+            lic_token, with_token = stack[-1].split(-1)
+            lic = get_license(lic_token.value)
+            if lic and lic["licenseId"].endswith("+"):
+                # "GPL-2.0++": "GPL-2.0+" is an ID, and no "+" follows it
+                lic = None
+
         if lic is None:
             return False
 
-        stack.append(cls(lic["licenseId"], token=stack.pop()))
+        stack.pop()
+
+        c = cls(lic["licenseId"], token=lic_token)
+        if with_token:
+            c = OrLaterOp(c, token=with_token)
+
+        stack.append(c)
         return True
+
+    def _upgrade(self):
+        replacement = DEPRECATED_REPLACEMENTS.get(self.ident)
+        if replacement is None:
+            return self
+
+        # Keep the range of the token, so an error points at the text that was
+        # written, but not its value: it is the ID now
+        token = self._copy_token()
+        if token:
+            token.value = replacement
+        return LicenseId(replacement, token=token)
 
 
 class ExceptionId(Identifier):
@@ -320,6 +442,32 @@ class LicenseRef(Identifier):
         t = stack.pop()
         stack.append(cls(t.value, m.group("name"), token=t))
         return True
+
+
+class OrLaterOp(Node):
+    def __init__(self, child, **kwargs):
+        super().__init__([child], **kwargs)
+
+    def copy(self):
+        return self.__class__(self.child.copy(), token=self._copy_token())
+
+    @property
+    def child(self):
+        return self.children[0]
+
+    def to_string(self):
+        return self.child.to_string() + "+"
+
+    def reduce(cls, stack, lookahead):
+        return False
+
+    def _sort(self):
+        s = self.child._sort()
+        self.children = [s.node]
+        return Node.Sort(
+            self,
+            s.key + [self.__class__.__name__],
+        )
 
 
 class CompoundExpression(Node):
@@ -384,7 +532,7 @@ class CompoundExpression(Node):
         return self.child._sort()
 
 
-SIMPLE_EXPRESSION = [LicenseId, LicenseRef, UnknownId]
+SIMPLE_EXPRESSION = [LicenseId, LicenseRef, UnknownId, OrLaterOp]
 COMPOUND_EXPRESSION = SIMPLE_EXPRESSION + [CompoundExpression]
 
 
@@ -441,7 +589,7 @@ class UnaryOp(Operator):
     def _sort(self):
         s = self.child._sort()
         self.children = [s.node]
-        return Node.Sort(self, [self.__class__.__name__, s.key])
+        return Node.Sort(self, s.key + [self.__class__.__name__])
 
 
 class BinOp(Operator):
@@ -659,7 +807,7 @@ class WithOp(BinOp):
         )
 
 
-RESERVED = set(Operator.OPERATORS.keys()) | {"(", ")", "+"}
+RESERVED = set(Operator.OPERATORS.keys()) | {"(", ")"}
 
 REDUCTIONS = (
     ReservedToken.reduce,
