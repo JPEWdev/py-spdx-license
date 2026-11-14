@@ -18,7 +18,7 @@ _EXCEPTIONS = {}
 
 def _load_licenses():
     p = THIS_DIR / "data" / "licenses.json"
-    with p.open("r") as f:
+    with p.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     for lic in data["licenses"]:
@@ -30,7 +30,7 @@ _load_licenses()
 
 def _load_exceptions():
     p = THIS_DIR / "data" / "exceptions.json"
-    with p.open("r") as f:
+    with p.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
     for lic in data["exceptions"]:
@@ -207,6 +207,9 @@ class Node(ABC):
     @abstractmethod
     def to_string(self):
         raise NotImplementedError("Method not implemented")
+
+    def __str__(self):
+        return self.to_string()
 
     def _copy_token(self):
         if self.token:

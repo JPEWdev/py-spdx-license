@@ -134,3 +134,26 @@ import pytest
 def test_sort(expression, expected):
     actual = py_spdx_license.parse(expression).sort()
     assert actual.to_string() == expected
+
+
+@pytest.mark.parametrize("op", ["AND", "OR"])
+@pytest.mark.parametrize(
+    "template,expected",
+    [
+        pytest.param("MIT {op} 0BSD {op} 0BSD", "0BSD {op} MIT", id="duplicate last"),
+        pytest.param("0BSD {op} MIT {op} 0BSD", "0BSD {op} MIT", id="duplicate split"),
+        pytest.param(
+            "Zlib {op} 0BSD {op} 0BSD", "0BSD {op} Zlib", id="duplicates last"
+        ),
+        pytest.param(
+            "0BSD {op} (0BSD {op} MIT)", "0BSD {op} MIT", id="duplicate nested right"
+        ),
+        pytest.param(
+            "(0BSD {op} MIT) {op} 0BSD", "0BSD {op} MIT", id="duplicate nested left"
+        ),
+    ],
+)
+def test_sort_chain_with_duplicate(op, template, expected):
+    expression = template.format(op=op)
+    actual = py_spdx_license.parse(expression).sort()
+    assert actual.to_string() == expected.format(op=op)
